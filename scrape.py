@@ -3,9 +3,10 @@ import time
 import requests
 import base64
 import logging
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException, WebDriverException, NoSuchElementException
 
 # ============================== MANUAL CONFIGURATION ==============================
 
@@ -134,8 +135,7 @@ def download_all_chapters(driver, start_chapter, end_chapter, base_url, chapter_
     logging.info(f"Errors: {total_errors}.")
 
 # Function to handle page scrolling
-def scroll_page(driver, wait_time, scroll_speed=0.1, scroll_step=100):
-
+def scroll_page(driver, wait_time, scroll_speed=0.1, scroll_step=1000):
     last_height = driver.execute_script("return document.body.scrollHeight")
     
     while True:
@@ -161,42 +161,46 @@ def scroll_page(driver, wait_time, scroll_speed=0.1, scroll_step=100):
 def download_chapter(driver, chapter_url, chapter_number, main_folder, image_css_selector):
     logging.info(f"Downloading images for Chapter {chapter_number}")
     chapter_start_time = time.time()
-    driver.get(chapter_url)
-    time.sleep(5)
-    scroll_page(driver, SCROLL_WAIT_TIME, SCROLL_SPEED, SCROLL_STEP)
+    try:
+        driver.get(chapter_url)
+        time.sleep(5)
+        scroll_page(driver, SCROLL_WAIT_TIME, SCROLL_SPEED, SCROLL_STEP)
 
-    image_elements = driver.find_elements(By.CSS_SELECTOR, image_css_selector)
-    image_urls = [image.get_attribute('src') for image in image_elements]
+        image_elements = driver.find_elements(By.CSS_SELECTOR, image_css_selector)
+        image_urls = [image.get_attribute('src') for image in image_elements]
 
-    chapter_folder = os.path.join(main_folder, f"Chapter_{chapter_number}")
-    os.makedirs(chapter_folder, exist_ok=True)
+        chapter_folder = os.path.join(main_folder, f"Chapter_{chapter_number}")
+        os.makedirs(chapter_folder, exist_ok=True)
 
-    chapter_size = 0
-    downloaded_images = 0
-    errors = 0
+        chapter_size = 0
+        downloaded_images = 0
+        errors = 0
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [
-            executor.submit(
-                download_image, image_url, chapter_folder, chapter_number, image_number
-            )
-            for image_number, image_url in enumerate(image_urls, 1)
-        ]
-        for future in futures:
-            try:
-                image_size = future.result()
-                if image_size:
-                    chapter_size += image_size
-                    downloaded_images += 1
-                else:
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [
+                executor.submit(
+                    download_image, image_url, chapter_folder, chapter_number, image_number
+                )
+                for image_number, image_url in enumerate(image_urls, 1)
+            ]
+            for future in as_completed(futures):
+                try:
+                    image_size = future.result()
+                    if image_size:
+                        chapter_size += image_size
+                        downloaded_images += 1
+                    else:
+                        errors += 1
+                except Exception as e:
+                    logging.error(f"Error downloading image: {e}")
                     errors += 1
-            except Exception as e:
-                logging.error(f"Error downloading image: {e}")
-                errors += 1
 
-    chapter_time_elapsed = time.time() - chapter_start_time
-    logging.info(f"Chapter {chapter_number} download complete. {downloaded_images} images downloaded, total size: {chapter_size / 1024:.2f} KB, time elapsed: {chapter_time_elapsed:.2f} seconds, errors: {errors}.")
-    return chapter_size, downloaded_images, errors
+        chapter_time_elapsed = time.time() - chapter_start_time
+        logging.info(f"Chapter {chapter_number} download complete. {downloaded_images} images downloaded, total size: {chapter_size / 1024:.2f} KB, time elapsed: {chapter_time_elapsed:.2f} seconds, errors: {errors}.")
+        return chapter_size, downloaded_images, errors
+    except (TimeoutException, WebDriverException) as e:
+        logging.error(f"Error loading chapter {chapter_number} page: {e}")
+        return 0, 0, 1
 
 # Function to download a single image
 def download_image(image_url, chapter_folder, chapter_number, image_number):
