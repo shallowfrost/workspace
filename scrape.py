@@ -6,31 +6,27 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException, WebDriverException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException, WebDriverException
 
-# ============================== MANUAL CONFIGURATION ==============================
+# ============================== CONFIGURATION ==============================
 
-# Initial URL setup and chapter range
-BASE_URL = 'https://nitroscans.net/series/super-god-system'
+BASE_URL = 'https://allmanga.to/read/SFrub9DDGMrmdZWyh/solo-leveling/'
 START_CHAPTER = 1
 END_CHAPTER = 5
-
-# Save folder
 MAIN_FOLDER = "Chapters"
 
-# Web scraping settings
-SCROLL_SPEED = 0.1
-SCROLL_STEP = 1000
-SCROLL_WAIT_TIME = 3  # Time to wait between each scroll
-IMAGE_DOWNLOAD_TIMEOUT = 10  # Timeout for downloading images (seconds)
-MIN_IMAGE_SIZE = 100  # Minimum size (in bytes) for images to be considered valid
+DSCROLL_SPEED = 0.007  # Time to wait between scrolls going down (seconds)
+USCROLL_SPEED = 0.001  # Time to wait between scrolls going up (seconds)
+SCROLL_STEP = 35    # Pixels to scroll each step
+SCROLL_WAIT_TIME = 3  # Additional wait time after scrolling
 
-# WebDriver options
+IMAGE_DOWNLOAD_TIMEOUT = 5  # Timeout for downloading images (seconds)
+MIN_IMAGE_SIZE = 100         # Minimum size (in bytes) for image downloads to be considered successful
+
 ENABLE_HEADLESS = False
 IGNORE_SSL_ERRORS = True
 ALLOW_INSECURE_CONTENT = True
 
-# Dictionary to hold configurations for each site
 SITE_CONFIGURATIONS = {
     'allmanga.to': {
         'URL': 'https://allmanga.to/manga?cty=ALL',
@@ -42,11 +38,6 @@ SITE_CONFIGURATIONS = {
         'IMAGE_CSS_SELECTOR': 'img.wp-manga-chapter-img',
         'CHAPTER_URL_TEMPLATE': '{base_url}/chapter-{chapter}/'
     },
-    'nitroscans.net': {
-        'URL': 'https://nitroscans.net',
-        'IMAGE_CSS_SELECTOR': 'img.wp-manga-chapter-img',
-        'CHAPTER_URL_TEMPLATE': '{base_url}/chapter-{chapter}/'
-    },
     'mgeko.cc': {
         'URL': 'https://www.mgeko.cc',
         'IMAGE_CSS_SELECTOR': '#chapter-reader img',
@@ -54,29 +45,41 @@ SITE_CONFIGURATIONS = {
     }
 }
 
-# ============================== END OF MANUAL CONFIGURATION ==============================
+# ============================== LOGGING SETUP ==============================
 
-# Set up logging for better error tracking
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Create a logs directory if it doesn't exist
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
 
-# Function to determine settings based on the URL's domain
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(LOG_DIR, 'manga_downloader.log')),
+        logging.StreamHandler()
+    ]
+)
+
+# ============================== FUNCTIONS ==============================
+
+def get_domain(url):
+    return url.split('/')[2]
+
 def get_manga_settings(url):
-    domain = url.split('/')[2]
+    domain = get_domain(url)
     if domain in SITE_CONFIGURATIONS:
         return SITE_CONFIGURATIONS[domain]
-    raise ValueError("No matching site settings found.")
+    raise ValueError(f"No matching site settings found for domain: {domain}")
 
-# Function to validate chapter range
 def validate_chapter_range(start, end):
-    if start < 1:
-        raise ValueError("Start chapter must be at least 1.")
+    validated_start = max(start, 1)
+    validated_end = max(end, validated_start)
     if end < start:
-        logging.warning("End chapter is less than start chapter. Setting end chapter to start.")
-        return start
-    return end
+        logging.warning(f"End chapter ({end}) < start chapter ({start}). Setting end chapter to start.")
+    return validated_start, validated_end
 
-# Function to set up the Selenium WebDriver
-def driver_setup():
+def setup_driver():
     options = webdriver.ChromeOptions()
     if IGNORE_SSL_ERRORS:
         options.add_argument('--ignore-certificate-errors')
@@ -85,160 +88,154 @@ def driver_setup():
     if ENABLE_HEADLESS:
         options.add_argument('--headless')
         options.add_argument('--disable-gpu')
+    
     return webdriver.Chrome(options=options)
 
-# Function to generate the chapter URL
-def generate_chapter_url(base_url, chapter, url_template):
-    return url_template.format(base_url=base_url, chapter=chapter)
+def generate_chapter_url(base_url, chapter, template):
+    return template.format(base_url=base_url, chapter=chapter)
 
-# Function to download all chapters
-def download_all_chapters(driver, start_chapter, end_chapter, base_url, chapter_url_template, image_css_selector, max_retries=3):
-    overall_start_time = time.time()
-    total_images_downloaded = 0
-    total_size_downloaded = 0
-    total_errors = 0
-
-    for chapter in range(start_chapter, end_chapter + 1):
-        chapter_size = 0
-        downloaded_images = 0
-        errors = 0
-        attempts = 0
-
-        # Retry loop for downloading the chapter if errors occur
-        while attempts < max_retries:
-            chapter_url = generate_chapter_url(base_url, chapter, chapter_url_template)
-            chapter_size, downloaded_images, errors = download_chapter(
-                driver, chapter_url, chapter, MAIN_FOLDER, image_css_selector
-            )
-
-            if errors == 0:
-                # If no errors, break out of the retry loop
-                break
-            else:
-                # Log the retry attempt and increment the counter
-                attempts += 1
-                logging.warning(f"Errors occurred during Chapter {chapter} download. Attempt {attempts}/{max_retries}. Retrying...")
-
-        if errors > 0:
-            logging.error(f"Failed to download Chapter {chapter} after {max_retries} attempts. Skipping chapter.")
-
-        total_images_downloaded += downloaded_images
-        total_size_downloaded += chapter_size
-        total_errors += errors
-
-    overall_elapsed_time = time.time() - overall_start_time
-    logging.info(f"Overall download complete.")
-    logging.info(f"Chapters: {start_chapter}-{end_chapter}")
-    logging.info(f"Total images: {total_images_downloaded}")
-    logging.info(f"Total size: {total_size_downloaded / 1024:.2f} KB")
-    logging.info(f"Total time: {overall_elapsed_time:.2f} seconds")
-    logging.info(f"Errors: {total_errors}.")
-
-# Function to handle page scrolling
-def scroll_page(driver, wait_time, scroll_speed=0.1, scroll_step=1000):
+def scroll_page(driver):
     last_height = driver.execute_script("return document.body.scrollHeight")
-    
-    while True:
-        # Scroll down by the specified step size
-        driver.execute_script(f"window.scrollBy(0, {scroll_step});")
-        time.sleep(scroll_speed)
+    d_scroll_pause_time = DSCROLL_SPEED
+    u_scroll_pause_time = USCROLL_SPEED
+    scroll_increment = SCROLL_STEP
 
-        # Calculate new scroll height after each scroll
+    # Scroll down in increments
+    while True:
+        driver.execute_script(f"window.scrollBy(0, {scroll_increment});")
+        time.sleep(d_scroll_pause_time)
+
         new_height = driver.execute_script("return document.body.scrollHeight")
 
-        # If the height doesn't change, we've reached the bottom
-        if new_height == last_height:
-            break
-        last_height = new_height
+        if new_height > last_height:
+            last_height = new_height
+        else:
+            # Check if near the bottom
+            viewport_height = driver.execute_script("return window.innerHeight")
+            scroll_position = driver.execute_script("return window.scrollY + window.innerHeight")
+            if scroll_position >= last_height - 10:
+                break
 
-    # Wait for images to load if needed
-    time.sleep(wait_time)
+    # Wait for any remaining content to load
+    time.sleep(SCROLL_WAIT_TIME)
 
-    # Scroll back to the top
+    # Scroll back to the top smoothly
+    current_position = driver.execute_script("return window.scrollY")
+    while current_position > 0:
+        decrement = scroll_increment if current_position >= scroll_increment else current_position
+        driver.execute_script(f"window.scrollBy(0, {-decrement});")
+        time.sleep(u_scroll_pause_time)
+        current_position -= decrement
+
+    # Ensure the page is at the top
     driver.execute_script("window.scrollTo(0, 0);")
+    time.sleep(u_scroll_pause_time)
 
-# Function to download images for a single chapter
-def download_chapter(driver, chapter_url, chapter_number, main_folder, image_css_selector):
-    logging.info(f"Downloading images for Chapter {chapter_number}")
-    chapter_start_time = time.time()
+def download_image(image_url, path, chapter_num, image_num):
     try:
-        driver.get(chapter_url)
-        time.sleep(5)
-        scroll_page(driver, SCROLL_WAIT_TIME, SCROLL_SPEED, SCROLL_STEP)
-
-        image_elements = driver.find_elements(By.CSS_SELECTOR, image_css_selector)
-        image_urls = [image.get_attribute('src') for image in image_elements]
-
-        chapter_folder = os.path.join(main_folder, f"Chapter_{chapter_number}")
-        os.makedirs(chapter_folder, exist_ok=True)
-
-        chapter_size = 0
-        downloaded_images = 0
-        errors = 0
-
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [
-                executor.submit(
-                    download_image, image_url, chapter_folder, chapter_number, image_number
-                )
-                for image_number, image_url in enumerate(image_urls, 1)
-            ]
-            for future in as_completed(futures):
-                try:
-                    image_size = future.result()
-                    if image_size:
-                        chapter_size += image_size
-                        downloaded_images += 1
-                    else:
-                        errors += 1
-                except Exception as e:
-                    logging.error(f"Error downloading image: {e}")
-                    errors += 1
-
-        chapter_time_elapsed = time.time() - chapter_start_time
-        logging.info(f"Chapter {chapter_number} download complete. {downloaded_images} images downloaded, total size: {chapter_size / 1024:.2f} KB, time elapsed: {chapter_time_elapsed:.2f} seconds, errors: {errors}.")
-        return chapter_size, downloaded_images, errors
-    except (TimeoutException, WebDriverException) as e:
-        logging.error(f"Error loading chapter {chapter_number} page: {e}")
-        return 0, 0, 1
-
-# Function to download a single image
-def download_image(image_url, chapter_folder, chapter_number, image_number):
-    try:
-        file_name = f"{chapter_number:03d}_{image_number:03d}.png"
-        file_path = os.path.join(chapter_folder, file_name)
-
         if image_url.startswith('data:'):
+            # Handle base64 encoded images
             data = image_url.split(',')[1]
             decoded_data = base64.b64decode(data)
-            with open(file_path, 'wb') as file:
+            with open(path, 'wb') as file:
                 file.write(decoded_data)
             image_size = len(decoded_data)
-            logging.info(f"Downloaded base64 image {file_name} of size {image_size} bytes.")
-            return image_size
+            if image_size < MIN_IMAGE_SIZE:
+                logging.warning(f"Failed to download image (size below minimum): {os.path.basename(path)} | Size: {image_size} bytes")
+                return 0
+            else:
+                logging.info(f"Downloaded base64 image: {os.path.basename(path)} | Size: {image_size} bytes")
+                return image_size
         else:
+            # Handle regular image URLs
             response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT)
             response.raise_for_status()
             image_size = len(response.content)
-            if image_size > MIN_IMAGE_SIZE:
-                with open(file_path, 'wb') as file:
+            if image_size < MIN_IMAGE_SIZE:
+                logging.warning(f"Failed to download image (size below minimum): {image_url}")
+                return 0
+            else:
+                with open(path, 'wb') as file:
                     file.write(response.content)
-                logging.info(f"Downloaded image {file_name} of size {image_size} bytes.")
+                logging.info(f"Downloaded image: {os.path.basename(path)} | Size: {image_size} bytes")
                 return image_size
-    except (requests.exceptions.RequestException, requests.exceptions.HTTPError) as e:
-        logging.error(f"Error downloading image {image_url}: {e}")
-        return None
+    except Exception as e:
+        logging.error(f"Failed to download image: {image_url} | Error: {e}")
+        return 0
 
-# Main script execution
-if __name__ == '__main__':
-    settings = get_manga_settings(BASE_URL)
-    IMAGE_CSS_SELECTOR = settings['IMAGE_CSS_SELECTOR']
-    CHAPTER_URL_TEMPLATE = settings['CHAPTER_URL_TEMPLATE']
+def download_chapter(driver, url, chapter_num, folder, selector):
+    try:
+        driver.get(url)
+        time.sleep(5)  # Allow the page to load
+        scroll_page(driver)
+        images = driver.find_elements(By.CSS_SELECTOR, selector)
+        image_urls = [img.get_attribute('src') for img in images]
 
-    # Validate chapter range
-    END_CHAPTER = validate_chapter_range(START_CHAPTER, END_CHAPTER)
+        chapter_folder = os.path.join(folder, f"Chapter_{chapter_num}")
+        os.makedirs(chapter_folder, exist_ok=True)
+
+        chapter_size = 0
+        downloaded = 0
+        failed = 0
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {
+                executor.submit(
+                    download_image,
+                    image_url=image_url,
+                    path=os.path.join(chapter_folder, f"{chapter_num:03d}_{i:03d}.png"),
+                    chapter_num=chapter_num,
+                    image_num=i
+                ): i for i, image_url in enumerate(image_urls, 1)
+            }
+            for future in as_completed(futures):
+                size = future.result()
+                if size:
+                    chapter_size += size
+                    downloaded += 1
+                else:
+                    failed += 1
+
+        logging.info(f"Chapter {chapter_num} complete: {downloaded} downloaded | {failed} failed | Total size: {chapter_size / 1024:.2f} KB")
+        return chapter_size, downloaded, failed
+
+    except (TimeoutException, WebDriverException) as e:
+        logging.error(f"Error loading chapter {chapter_num} page: {e}")
+        return 0, 0, 1
+
+def download_all_chapters(driver, start, end, base_url, template, selector):
     os.makedirs(MAIN_FOLDER, exist_ok=True)
+    total_size = 0
+    total_downloaded = 0
+    total_failed = 0
 
-    # Start the WebDriver and download chapters
-    with driver_setup() as driver:
-        download_all_chapters(driver, START_CHAPTER, END_CHAPTER, BASE_URL, CHAPTER_URL_TEMPLATE, IMAGE_CSS_SELECTOR)
+    for chapter in range(start, end + 1):
+        chapter_url = generate_chapter_url(base_url, chapter, template)
+        logging.info(f"Starting download for Chapter {chapter}")
+        size, downloaded, failed = download_chapter(driver, chapter_url, chapter, MAIN_FOLDER, selector)
+        total_size += size
+        total_downloaded += downloaded
+        total_failed += failed
+
+    logging.info(f"Download Summary: {total_downloaded} images downloaded | {total_failed} failed | Total size: {total_size / 1024:.2f} KB")
+
+# ============================== MAIN EXECUTION ==============================
+
+if __name__ == '__main__':
+    try:
+        settings = get_manga_settings(BASE_URL)
+        start_chap, end_chap = validate_chapter_range(START_CHAPTER, END_CHAPTER)
+
+        logging.info(f"Starting manga downloader: Chapters {start_chap} to {end_chap}, {(end_chap - start_chap + 1)} total")
+        with setup_driver() as driver:
+            download_all_chapters(
+                driver,
+                start=start_chap,
+                end=end_chap,
+                base_url=BASE_URL,
+                template=settings['CHAPTER_URL_TEMPLATE'],
+                selector=settings['IMAGE_CSS_SELECTOR']
+            )
+        logging.info("Manga download process completed successfully.")
+    except Exception as e:
+        logging.critical(f"An unexpected error occurred: {e}")
