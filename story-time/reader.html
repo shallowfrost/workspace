@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive Story</title>
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+      }
+
+      #storyContainer {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        width: 80%;
+        max-width: 800px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        text-align: left;
+      }
+
+      .node-container {
+        margin: 10px;
+        margin-bottom: 20px;
+      }
+
+      .warn-bubble {
+        background-color: rgba(228, 29, 14, 0.866);
+        display: inline-block;
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+      }
+
+      .node-footer {
+        font-size: 0.9em;
+        color: #555;
+        margin-top: 10px;
+        position: relative;
+        margin-bottom: -25px;
+
+        p {
+          margin: 10px;
+          margin-left: -14px;
+        }
+
+        b1 {
+          font-weight: 600;
+          color: #00000087;
+          margin-left: 15px;
+        }
+      }
+
+      .footer-line {
+        margin-bottom: 10px;
+      }
+
+      button {
+        background: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 20px;
+        cursor: pointer;
+        margin: 5px;
+      }
+
+      button:hover {
+        background: #0056b3;
+      }
+
+      button:focus {
+        outline: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Interactive Story Viewer</h1>
+    <div id="storyContainer">
+      <p>Loading story...</p>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const TIMESTAMP = 0;
+        const DISCORDUSERNAME = 1;
+        const PARENTNODEID = 2;
+        const NODEID = 3;
+        const NODEDEPTH = 4;
+        const NODENUMBER = 5;
+        const OPTIONTEXT = 6; // Corrected index for option text
+        const NODENAME = 7;
+        const STORYCONTENT = 8;
+        const ADDITIONALNOTES = 9;
+
+        const SPREADSHEET_ID = "1es-V9vR_od1qfeZJhBfOXAb55TsQDTIukphM4wzkbeA";
+        const SHEET_ID = "2039215777";
+
+        let nodes = {};
+        let currentNodeID = "000001000000000000000001";
+
+        function sanitize(input) {
+          console.log("Original input:", input);
+
+          // Replace all newlines with <br>, avoiding redundant replacements
+          input = input.replace(/(\r\n|\n|\r|<\/?br\s*\/?>)/g, "<br>");
+          console.log("After replacing newlines with <br>:", input);
+
+          // Allow multiple consecutive <br> tags but limit sequences to a maximum of 2
+          input = input.replace(/(<br\s*\/?>){3,}/gi, "<br><br>");
+          console.log("After cleaning excessive <br> tags:", input);
+
+          // Define allowed harmless tags (case-insensitive)
+          const allowedTags =
+            /^(<\/?(strong|b|i|u|br|em|small|mark|h[1-6]|p|span|sub|sup)\b[^>]*>)$/i;
+
+          // Escape other tags
+          input = input.replace(/<\/?[^>]*>/g, (tag) => {
+            const cleanedTag = tag.trim();
+            const isAllowed = allowedTags.test(cleanedTag);
+            console.log("Tag processed:", cleanedTag, "| Allowed:", isAllowed);
+            return isAllowed
+              ? cleanedTag
+              : cleanedTag.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          });
+          console.log("Final sanitized input:", input);
+
+          return input;
+        }
+
+        function csvToMatrix(csvString) {
+          // Split rows by newline, remove empty rows
+          const rows = csvString
+            .trim()
+            .split("\n")
+            .filter((row) => row.trim() !== "");
+
+          // Parse each row into cells
+          return rows.map((row) => {
+            const cells = [];
+            let inQuotes = false;
+            let cell = "";
+
+            for (const char of row) {
+              if (char === '"') {
+                // Toggle the inQuotes flag
+                inQuotes = !inQuotes;
+              } else if (char === "," && !inQuotes) {
+                // Push the cell content when a comma is found outside quotes
+                cells.push(sanitize(cell)); // Restore newlines, trim spaces
+                cell = "";
+              } else {
+                // Add the character to the current cell
+                cell += char;
+              }
+            }
+
+            // Add the last cell in the row
+            cells.push(cell.trim()); // Restore newlines, trim spaces
+            return cells;
+          });
+        }
+
+        function buildNodes(matrix) {
+          let headers = matrix.shift(); // Remove header row
+          matrix.forEach((row) => {
+            let node = {
+              timestamp: row[TIMESTAMP],
+              discordUsername: row[DISCORDUSERNAME],
+              parentNodeID: row[PARENTNODEID],
+              nodeID: row[NODEID],
+              nodeDepth: parseInt(row[NODEDEPTH], 10),
+              nodeNumber: row[NODENUMBER],
+              nodeName: row[NODENAME],
+              optionText: row[OPTIONTEXT],
+              storyContent: row[STORYCONTENT],
+              additionalNotes: row[ADDITIONALNOTES],
+            };
+            nodes[node.nodeID] = node;
+          });
+        }
+
+        function renderNode(nodeID, parentElement) {
+          let node = nodes[nodeID];
+          if (!node) {
+            parentElement.innerHTML = "<p>Error: Node not found.</p>";
+            return;
+          }
+
+          let container = document.createElement("div");
+          container.className = "node-container";
+
+          let story = document.createElement("p");
+          story.innerHTML = node.storyContent;
+          container.appendChild(story);
+
+          // Options (buttons)
+          let options = Object.values(nodes).filter(
+            (n) => n.parentNodeID === nodeID
+          );
+          if (options.length > 0) {
+            options.forEach((option) => {
+              let button = document.createElement("button");
+              button.textContent = option.optionText || "Choose";
+              button.addEventListener("click", () => {
+                loadNode(option.nodeID);
+              });
+              container.appendChild(button);
+            });
+          } else {
+            let endMessage = document.createElement("p");
+            endMessage.classList.add("warn-bubble");
+            endMessage.innerHTML = "No further options.";
+            container.appendChild(endMessage);
+          }
+
+          // Footer with metadata
+          let footer = document.createElement("div");
+          footer.className = "node-footer";
+          footer.innerHTML = `
+                    <div class="node-footer">
+                        <div class="footer-line">
+                            <hr style="margin-bottom: 12px; margin-left: -2%; width: 104%;">
+                        </div>
+                        <div>
+                            <p style="margin-bottom: -8px;">
+                                <span><b1>Timestamp:</b1> ${node.timestamp}</span>
+                                <span><b1>Discord Username:</b1> ${node.discordUsername}</span>
+                            </p>
+                            <p>    
+                                <span><b1>Node Depth:</b1> ${node.nodeDepth}</span>
+                                <span><b1>Node Number:</b1> ${node.nodeNumber}</span>
+                                <span><b1>Node Name:</b1> ${node.nodeName}</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    `;
+          container.appendChild(footer);
+
+          parentElement.innerHTML = ""; // Clear previous content
+          parentElement.appendChild(container);
+        }
+
+        function loadNode(nodeID) {
+          currentNodeID = nodeID;
+          let parentElement = document.getElementById("storyContainer");
+          if (parentElement) {
+            renderNode(nodeID, parentElement);
+          }
+        }
+
+        function loadPageContent(sheetID) {
+          const spreadSheetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${sheetID}`;
+          fetch(spreadSheetUrl)
+            .then((response) => response.text())
+            .then((csvData) => {
+              let matrix = csvToMatrix(csvData);
+              buildNodes(matrix);
+              loadNode(currentNodeID); // Start with the default node
+            })
+            .catch((error) => {
+              console.error("Error fetching CSV:", error);
+              document.getElementById("storyContainer").innerHTML =
+                "<p>Error loading story data.</p>";
+            });
+        }
+
+        // Load data and initialize
+        loadPageContent(SHEET_ID);
+      });
+    </script>
+  </body>
+</html>
