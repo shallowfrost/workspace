@@ -99,7 +99,7 @@
         const CHILDNODES = 4;
         const NODEDEPTH = 5;
         const NODENUMBER = 6;
-        const OPTIONTEXT = 7; // Corrected index for option text
+        const OPTIONTEXT = 7;
         const NODENAME = 8;
         const STORYCONTENT = 9;
         const ADDITIONALNOTES = 10;
@@ -108,20 +108,15 @@
         const SHEET_ID = "2039215777";
 
         let nodes = {};
-        let currentNodeID = "__start__";
+        let startNodeID = "__start__";
 
         function sanitize(input) {
-          console.log("Original input:", input);
-
-          // Replace all newlines with <br>, avoiding redundant replacements
+          // Replace all newlines with <br>
           input = input.replace(/(\r\n|\n|\r|<\/?br\s*\/?>)/g, "<br>");
-          console.log("After replacing newlines with <br>:", input);
 
-          // Allow multiple consecutive <br> tags but limit sequences to a maximum of 2
           input = input.replace(/(<br\s*\/?>){3,}/gi, "<br><br>");
           console.log("After cleaning excessive <br> tags:", input);
 
-          // Define allowed harmless tags (case-insensitive)
           const allowedTags =
             /^(<\/?(strong|b|i|u|br|em|small|mark|h[1-6]|p|span|sub|sup)\b[^>]*>)$/i;
 
@@ -129,13 +124,10 @@
           input = input.replace(/<\/?[^>]*>/g, (tag) => {
             const cleanedTag = tag.trim();
             const isAllowed = allowedTags.test(cleanedTag);
-            console.log("Tag processed:", cleanedTag, "| Allowed:", isAllowed);
             return isAllowed
               ? cleanedTag
               : cleanedTag.replace(/</g, "&lt;").replace(/>/g, "&gt;");
           });
-          console.log("Final sanitized input:", input);
-
           return input;
         }
 
@@ -154,19 +146,15 @@
 
             for (const char of row) {
               if (char === '"') {
-                // Toggle the inQuotes flag
                 inQuotes = !inQuotes;
               } else if (char === "," && !inQuotes) {
-                // Push the cell content when a comma is found outside quotes
-                cells.push(sanitize(cell)); // Restore newlines, trim spaces
+                cells.push(sanitize(cell));
                 cell = "";
               } else {
-                // Add the character to the current cell
                 cell += char;
               }
             }
 
-            // Add the last cell in the row
             cells.push(cell.trim()); // Restore newlines, trim spaces
             return cells;
           });
@@ -180,6 +168,7 @@
               discordUsername: row[DISCORDUSERNAME],
               parentNodeID: row[PARENTNODEID],
               nodeID: row[NODEID],
+              childNodes: row[CHILDNODES],
               nodeDepth: parseInt(row[NODEDEPTH], 10),
               nodeNumber: row[NODENUMBER],
               nodeName: row[NODENAME],
@@ -223,9 +212,21 @@
             endMessage.classList.add("warn-bubble");
             endMessage.innerHTML = "No further options.";
             container.appendChild(endMessage);
+            if childNodes[0] == '__start__' {
+              
+              let options = Object.values(nodes).filter(
+                (n) => n.nodeID === '__start__'
+              );
+              let button = document.createElement("button");
+                button.textContent = option.optionText || "Restart";
+                button.addEventListener("click", () => {
+                  loadNode(option.nodeID);
+                });
+                container.appendChild(button);
+              });
+            }
           }
 
-          // Footer with metadata
           let footer = document.createElement("div");
           footer.className = "node-footer";
           footer.innerHTML = `
@@ -268,7 +269,7 @@
             .then((csvData) => {
               let matrix = csvToMatrix(csvData);
               buildNodes(matrix);
-              loadNode(currentNodeID); // Start with the default node
+              loadNode(startNodeID); // Start with the default node
             })
             .catch((error) => {
               console.error("Error fetching CSV:", error);
@@ -277,7 +278,6 @@
             });
         }
 
-        // Load data and initialize
         loadPageContent(SHEET_ID);
       });
     </script>
