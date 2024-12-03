@@ -83,203 +83,181 @@
       }
     </style>
   </head>
-
   <body>
     <h1>Interactive Story Viewer</h1>
     <div id="storyContainer">
       <p>Loading story...</p>
     </div>
-
     <script>
       document.addEventListener("DOMContentLoaded", () => {
-        const TIMESTAMP = 0;
-        const DISCORDUSERNAME = 1;
-        const PARENTNODEID = 2;
-        const NODEID = 3;
-        const CHILDNODES = 4;
-        const NODEDEPTH = 5;
-        const NODENUMBER = 6;
-        const OPTIONTEXT = 7;
-        const NODENAME = 8;
-        const STORYCONTENT = 9;
-        const ADDITIONALNOTES = 10;
+            const TIMESTAMP = 0;
+            const DISCORDUSERNAME = 1;
+            const PARENTNODEID = 2;
+            const NODEID = 3;
+            const CHILDNODES = 4;
+            const NODEDEPTH = 5;
+            const NODENUMBER = 6;
+            const OPTIONTEXT = 7;
+            const NODENAME = 8;
+            const STORYCONTENT = 9;
+            const ADDITIONALNOTES = 10;
+            const SPREADSHEET_ID = "1es-V9vR_od1qfeZJhBfOXAb55TsQDTIukphM4wzkbeA";
+            const SHEET_ID = "2039215777";
+            let nodes = {};
+            let startNodeID = "__start__";
 
-        const SPREADSHEET_ID = "1es-V9vR_od1qfeZJhBfOXAb55TsQDTIukphM4wzkbeA";
-        const SHEET_ID = "2039215777";
+            function sanitize(input) {
+              // Replace all newlines with 
+              < br > input = input.replace(/(\r\n|\n|\r|<\/?br\s*\/?>)/g, " < br > ");
+                input = input.replace(/( < br\ s * \/?>){3,}/gi, " < br > < br > ");
+                  console.log("After cleaning excessive  < br > tags: ", input);
+                    const allowedTags = /^(<\/?(strong|b|i|u|br|em|small|mark|h[1-6]|p|span|sub|sup)\b[^>]*>)$/i;
+                    // Escape other tags
+                    input = input.replace(/<\/?[^>]*>/g, (tag) => {
+                        const cleanedTag = tag.trim();
+                        const isAllowed = allowedTags.test(cleanedTag);
+                        return isAllowed ? cleanedTag : cleanedTag.replace(/ < /g, "&lt;").replace(/ > /g, "&gt;");
+                        });
+                      return input;
+                    }
 
-        let nodes = {};
-        let startNodeID = "__start__";
+                    function csvToMatrix(csvString) {
+                      // Split rows by newline, remove empty rows
+                      const rows = csvString.trim().split("\n").filter((row) => row.trim() !== "");
+                      // Parse each row into cells
+                      return rows.map((row) => {
+                        const cells = [];
+                        let inQuotes = false;
+                        let cell = "";
+                        for (const char of row) {
+                          if (char === '"') {
+                            inQuotes = !inQuotes;
+                          } else if (char === "," && !inQuotes) {
+                            cells.push(sanitize(cell));
+                            cell = "";
+                          } else {
+                            cell += char;
+                          }
+                        }
+                        cells.push(cell.trim()); // Restore newlines, trim spaces
+                        return cells;
+                      });
+                    }
 
-        function sanitize(input) {
-          // Replace all newlines with <br>
-          input = input.replace(/(\r\n|\n|\r|<\/?br\s*\/?>)/g, "<br>");
+                    function buildNodes(matrix) {
+                      let headers = matrix.shift(); // Remove header row
+                      matrix.forEach((row) => {
+                        let node = {
+                          timestamp: row[TIMESTAMP],
+                          discordUsername: row[DISCORDUSERNAME],
+                          parentNodeID: row[PARENTNODEID],
+                          nodeID: row[NODEID],
+                          childNodes: row[CHILDNODES],
+                          nodeDepth: parseInt(row[NODEDEPTH], 10),
+                          nodeNumber: row[NODENUMBER],
+                          nodeName: row[NODENAME],
+                          optionText: row[OPTIONTEXT],
+                          storyContent: row[STORYCONTENT],
+                          additionalNotes: row[ADDITIONALNOTES],
+                        };
+                        nodes[node.nodeID] = node;
+                      });
+                    }
 
-          input = input.replace(/(<br\s*\/?>){3,}/gi, "<br><br>");
-          console.log("After cleaning excessive <br> tags:", input);
+                    function renderNode(nodeID, parentElement) {
+                      let node = nodes[nodeID];
+                      if (!node) {
+                        parentElement.innerHTML = " < p > Error: Node not found. < /p>";
+                        return;
+                      }
+                      parentElement.innerHTML = "";
+                      let container = document.createElement("div");
+                      container.className = "node-container";
+                      let story = document.createElement("p");
+                      story.innerHTML = node.storyContent;
+                      container.appendChild(story);
+                      let options = Object.values(nodes).filter(
+                        (n) => n.parentNodeID === nodeID);
+                      if (options.length > 0) {
+                        options.forEach((option) => {
+                          let button = document.createElement("button");
+                          button.textContent = option.optionText || "Choose";
+                          button.addEventListener("click", () => {
+                            renderNode(option.nodeID, parentElement);
+                          });
+                          container.appendChild(button);
+                        });
+                      } else {
+                        let endMessage = document.createElement("p");
+                        endMessage.classList.add("warn-bubble");
+                        endMessage.innerHTML = "No further options.";
+                        container.appendChild(endMessage);
+                        if (nodes[startNodeID]) {
+                          let restartNode = nodes[startNodeID];
+                          let restartButton = document.createElement("button");
+                          restartButton.textContent = restartNode.optionText || "Restart";
+                          restartButton.addEventListener("click", () => {
+                            renderNode(startNodeID, parentElement);
+                          });
+                          container.appendChild(restartButton);
+                        }
+                      }
+                      parentElement.appendChild(container);
+                    }
+                    let footer = document.createElement("div"); footer.className = "node-footer"; footer.innerHTML = `
+                    
+								<div class="node-footer">
+									<div class="footer-line">
+										<hr style="margin-bottom: 12px; margin-left: -2%; width: 104%;">
+										</div>
+										<div>
+											<p style="margin-bottom: -8px;">
+												<span>
+													<b1>Timestamp:</b1> ${node.timestamp}
+												</span>
+												<span>
+													<b1>Discord Username:</b1> ${node.discordUsername}
+												</span>
+											</p>
+											<p>
+												<span>
+													<b1>Node Depth:</b1> ${node.nodeDepth}
+												</span>
+												<span>
+													<b1>Node Number:</b1> ${node.nodeNumber}
+												</span>
+												<span>
+													<b1>Node Name:</b1> ${node.nodeName}
+												</span>
+											</p>
+										</div>
+									</div>
 
-          const allowedTags =
-            /^(<\/?(strong|b|i|u|br|em|small|mark|h[1-6]|p|span|sub|sup)\b[^>]*>)$/i;
+                    `; container.appendChild(footer); parentElement.innerHTML = ""; // Clear previous content
+                    parentElement.appendChild(container);
+                  }
 
-          // Escape other tags
-          input = input.replace(/<\/?[^>]*>/g, (tag) => {
-            const cleanedTag = tag.trim();
-            const isAllowed = allowedTags.test(cleanedTag);
-            return isAllowed
-              ? cleanedTag
-              : cleanedTag.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-          });
-          return input;
-        }
+                  function loadNode(nodeID) {
+                    currentNodeID = nodeID;
+                    let parentElement = document.getElementById("storyContainer");
+                    if (parentElement) {
+                      renderNode(nodeID, parentElement);
+                    }
+                  }
 
-        function csvToMatrix(csvString) {
-          // Split rows by newline, remove empty rows
-          const rows = csvString
-            .trim()
-            .split("\n")
-            .filter((row) => row.trim() !== "");
-
-          // Parse each row into cells
-          return rows.map((row) => {
-            const cells = [];
-            let inQuotes = false;
-            let cell = "";
-
-            for (const char of row) {
-              if (char === '"') {
-                inQuotes = !inQuotes;
-              } else if (char === "," && !inQuotes) {
-                cells.push(sanitize(cell));
-                cell = "";
-              } else {
-                cell += char;
-              }
-            }
-
-            cells.push(cell.trim()); // Restore newlines, trim spaces
-            return cells;
-          });
-        }
-
-        function buildNodes(matrix) {
-          let headers = matrix.shift(); // Remove header row
-          matrix.forEach((row) => {
-            let node = {
-              timestamp: row[TIMESTAMP],
-              discordUsername: row[DISCORDUSERNAME],
-              parentNodeID: row[PARENTNODEID],
-              nodeID: row[NODEID],
-              childNodes: row[CHILDNODES],
-              nodeDepth: parseInt(row[NODEDEPTH], 10),
-              nodeNumber: row[NODENUMBER],
-              nodeName: row[NODENAME],
-              optionText: row[OPTIONTEXT],
-              storyContent: row[STORYCONTENT],
-              additionalNotes: row[ADDITIONALNOTES],
-            };
-            nodes[node.nodeID] = node;
-          });
-        }
-
-        function renderNode(nodeID, parentElement) {
-          let node = nodes[nodeID];
-          if (!node) {
-            parentElement.innerHTML = "<p>Error: Node not found.</p>";
-            return;
-          }
-
-          let container = document.createElement("div");
-          container.className = "node-container";
-
-          let story = document.createElement("p");
-          story.innerHTML = node.storyContent;
-          container.appendChild(story);
-
-          // Options (buttons)
-          let options = Object.values(nodes).filter(
-            (n) => n.parentNodeID === nodeID
-          );
-          if (options.length > 0) {
-            options.forEach((option) => {
-              let button = document.createElement("button");
-              button.textContent = option.optionText || "Choose";
-              button.addEventListener("click", () => {
-                loadNode(option.nodeID);
-              });
-              container.appendChild(button);
-            });
-          } else {
-            let endMessage = document.createElement("p");
-            endMessage.classList.add("warn-bubble");
-            endMessage.innerHTML = "No further options.";
-            container.appendChild(endMessage);
-            if childNodes[0] == '__start__' {
-              
-              let options = Object.values(nodes).filter(
-                (n) => n.nodeID === '__start__'
-              );
-              let button = document.createElement("button");
-                button.textContent = option.optionText || "Restart";
-                button.addEventListener("click", () => {
-                  loadNode(option.nodeID);
+                  function loadPageContent(sheetID) {
+                    const spreadSheetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${sheetID}`;
+                    fetch(spreadSheetUrl).then((response) => response.text()).then((csvData) => {
+                      let matrix = csvToMatrix(csvData);
+                      buildNodes(matrix);
+                      loadNode(startNodeID); // Start with the default node
+                    }).catch((error) => {
+                      console.error("Error fetching CSV:", error);
+                      document.getElementById("storyContainer").innerHTML = " < p > Error loading story data. < /p>";
+                    });
+                  }
+                  loadPageContent(SHEET_ID);
                 });
-                container.appendChild(button);
-              });
-            }
-          }
-
-          let footer = document.createElement("div");
-          footer.className = "node-footer";
-          footer.innerHTML = `
-                    <div class="node-footer">
-                        <div class="footer-line">
-                            <hr style="margin-bottom: 12px; margin-left: -2%; width: 104%;">
-                        </div>
-                        <div>
-                            <p style="margin-bottom: -8px;">
-                                <span><b1>Timestamp:</b1> ${node.timestamp}</span>
-                                <span><b1>Discord Username:</b1> ${node.discordUsername}</span>
-                            </p>
-                            <p>    
-                                <span><b1>Node Depth:</b1> ${node.nodeDepth}</span>
-                                <span><b1>Node Number:</b1> ${node.nodeNumber}</span>
-                                <span><b1>Node Name:</b1> ${node.nodeName}</span>
-                            </p>
-                        </div>
-                    </div>
-
-                    `;
-          container.appendChild(footer);
-
-          parentElement.innerHTML = ""; // Clear previous content
-          parentElement.appendChild(container);
-        }
-
-        function loadNode(nodeID) {
-          currentNodeID = nodeID;
-          let parentElement = document.getElementById("storyContainer");
-          if (parentElement) {
-            renderNode(nodeID, parentElement);
-          }
-        }
-
-        function loadPageContent(sheetID) {
-          const spreadSheetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${sheetID}`;
-          fetch(spreadSheetUrl)
-            .then((response) => response.text())
-            .then((csvData) => {
-              let matrix = csvToMatrix(csvData);
-              buildNodes(matrix);
-              loadNode(startNodeID); // Start with the default node
-            })
-            .catch((error) => {
-              console.error("Error fetching CSV:", error);
-              document.getElementById("storyContainer").innerHTML =
-                "<p>Error loading story data.</p>";
-            });
-        }
-
-        loadPageContent(SHEET_ID);
-      });
     </script>
   </body>
 </html>
