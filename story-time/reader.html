@@ -96,18 +96,19 @@
         const DISCORDUSERNAME = 1;
         const PARENTNODEID = 2;
         const NODEID = 3;
-        const NODEDEPTH = 4;
-        const NODENUMBER = 5;
-        const OPTIONTEXT = 6; // Corrected index for option text
-        const NODENAME = 7;
-        const STORYCONTENT = 8;
-        const ADDITIONALNOTES = 9;
+        const CHILDNODES = 4;
+        const NODEDEPTH = 5;
+        const NODENUMBER = 6;
+        const OPTIONTEXT = 7; // Corrected index for option text
+        const NODENAME = 8;
+        const STORYCONTENT = 9;
+        const ADDITIONALNOTES = 10;
 
         const SPREADSHEET_ID = "1es-V9vR_od1qfeZJhBfOXAb55TsQDTIukphM4wzkbeA";
         const SHEET_ID = "2039215777";
 
         let nodes = {};
-        let currentNodeID = "000001000000000000000001";
+        let currentNodeID = "__start__";
 
         function sanitize(input) {
           console.log("Original input:", input);
