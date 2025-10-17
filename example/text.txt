@@ -1,0 +1,51 @@
+I wonder if you could just make a category or forum channel that mirrors the directory and that would allow 2 layers of subfolders (category > channel/forum > files/post > files) and have the bot scan for new messages, deleting the plain text ones or ones without the right attachment types, and delete and resend in the proper format any that fit the criteria. then you could have the bot take as many as 10 at a time, given that the files don't collectively go over the limit, and repost them individually with text corresponding to [<@uploaderID> - fileName (or path) - otherInfo]. then you wouldn't have to make any frontend or deal with serving and managing the drive for others to access. And I'm not saying don't make a drive; still make one for the bot to read and write to but more of a backup or archive.
+
+google drive: // discord representation
+```
+Drive:. // the category
+├───animal // forum
+│   ├───bobcat // post
+│   │       other.wav // message
+│   │       stride.mp3 // message
+│   ├───deer // post
+│   │       other.wav // message
+│   │       other.mp3
+│   ├───horse
+│   │       other.wav // message
+│   │       other.mp3
+│   ├───owl
+│   │       other.wav
+│   │       other.mp3
+│   └───wolf
+│           other.wav
+│           other.mp3
+├───footsteps // forum
+│   ├───brick // post
+│   │       other.wav // message
+│   │       other.mp3
+│   ├───foliage
+│   │       other.wav
+│   │       other.mp3
+│   ├───metal
+│   │       other.wav
+│   │       other.mp3
+│   └───wood
+│           other.wav
+│           other.mp3
+├───nature // forum
+│   ├───background // post
+│   │       other.wav // message
+│   │       other.mp3
+│   ├───foliage
+│   │       other.wav
+│   │       other.mp3
+│   └───weather
+│           other.wav
+│           other.mp3
+└───UI // channel
+        click.wav // message
+        confirm.wav // message
+        deny.mp3
+        other.wav
+        other.mp3
+```

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Math Game</title>
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+      }
+
+      #storyContainer {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        width: 80%;
+        max-width: 800px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        text-align: left;
+      }
+
+      h1 {
+        text-align: center;
+      }
+
+      button {
+        background: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 20px;
+        cursor: pointer;
+        margin: 5px;
+        transition: background 0.3s;
+      }
+
+      button:hover {
+        background: #0056b3;
+      }
+
+      .warn-bubble {
+        background-color: rgba(228, 29, 14, 0.866);
+        display: inline-block;
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+      }
+
+      .correct {
+        background-color: #28a745;
+      }
+
+      .wrong {
+        background-color: #dc3545;
+      }
+
+      .center {
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Math Game</h1>
+    <div id="storyContainer"><p>Loading questions...</p></div>
+
+    <script>
+      const questions = [
+        {
+          q: "How old am I if 300 reduced by 3 times my age is 45?",
+          options: ["75", "165", "69", "85"],
+          answer: 3,
+        },
+        {
+          q: "Stephanie spent half of her weekly allowance on clothes. To earn more money her parents let her mow the lawn for $6.20. What is her weekly allowance if she ended with $10.50?",
+          options: ["$7.74", "$14.80", "$8.60", "$2.15"],
+          answer: 2,
+        },
+        {
+          q: "On Tuesday Rob bought eight boxes. On Wednesday half of all the boxes that he had were destroyed. On Thursday there were only 17 left. How many did he have on Monday?",
+          options: ["9", "26", "4", "18"],
+          answer: 1,
+        },
+        {
+          q: "Trevon had some candy to give to his four children. He first took seven pieces for himself and then evenly divided the rest among his children. Each child received two pieces. With how many pieces did he start?",
+          options: ["15", "14", "30", "16"],
+          answer: 0,
+        },
+        {
+          q: "Jose won 62 super bouncy balls playing basketball at the county fair. At school he gave four to every student in his math class. He only has 10 remaining. How many students are in his class?",
+          options: ["12", "18", "13", "40"],
+          answer: 2,
+        },
+        {
+          q: "Ashley was going to sell all of her stamp collection to buy a video game. After selling half of them she changed her mind. She then bought twenty more. How many did she start with if she now has 50?",
+          options: ["80", "60", "120", "100"],
+          answer: 1,
+        },
+        {
+          q: "Lisa had some candy to give to her five children. She first took five pieces for herself and then evenly divided the rest among her children. Each child received two pieces. With how many pieces did she start?",
+          options: ["15", "12", "27", "14"],
+          answer: 0,
+        },
+        {
+          q: "Huong wanted to make note cards by cutting pieces of paper in half. Before starting she got five more pieces to use. When she was done she had 24 half-pieces of paper. With how many pieces did she start?",
+          options: ["9", "7", "10", "12"],
+          answer: 1,
+        },
+        {
+          q: "The Cooking Club made some pies to sell during lunch to raise money for a field trip. The cafeteria helped by donating two pies to the club. Each pie was then cut into seven pieces and sold. There were a total of 56 pieces to sell. How many pies did the club make?",
+          options: ["8", "4", "6", "7"],
+          answer: 2,
+        },
+        {
+          q: "Amanda spent half of her weekly allowance at the movies. To earn more money her parents let her clean the oven for $5.10. What is her weekly allowance if she ended with $13.40?",
+          options: ["$4.15", "$18.26", "$21.70", "$16.60"],
+          answer: 3,
+        },
+      ];
+
+      let currentQuestion = 0;
+      const storyContainer = document.getElementById("storyContainer");
+
+      function showQuestion(index) {
+        storyContainer.innerHTML = "";
+        if (index >= questions.length) {
+          storyContainer.innerHTML = `
+            <div class="center">
+              <h2>congratulations! You finished all the questions and won!</h2>
+              <button onclick="restartGame()">Restart</button>
+            </div>`;
+          return;
+        }
+
+        const qData = questions[index];
+        const qEl = document.createElement("h3");
+        qEl.textContent = `Question ${index + 1}: ${qData.q}`;
+        storyContainer.appendChild(qEl);
+
+        qData.options.forEach((opt, i) => {
+          const btn = document.createElement("button");
+          btn.textContent = opt;
+          btn.onclick = () => checkAnswer(i, qData.answer);
+          storyContainer.appendChild(btn);
+        });
+      }
+
+      function checkAnswer(selected, correct) {
+        if (selected === correct) {
+          currentQuestion++;
+          showQuestion(currentQuestion);
+        } else {
+          showWrongScreen();
+        }
+      }
+
+      function showWrongScreen() {
+        storyContainer.innerHTML = `
+          <div class="center">
+            <p class="warn-bubble">Wrong answer! Try again.</p>
+            <button onclick="restartGame()">Restart Game</button>
+          </div>`;
+      }
+
+      function restartGame() {
+        currentQuestion = 0;
+        showQuestion(currentQuestion);
+      }
+
+      // Start game
+      showQuestion(currentQuestion);
+    </script>
+  </body>
+</html>

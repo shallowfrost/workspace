@@ -1,0 +1,17 @@
+2(x+1)+2(x-3)=60     x=16
+the width of a square was increased by 1 on each side and the height was decreased by 3. if the perimeter of the resulting retangle is 60 then what was the side length of the original square?
+
+4(x-1)=28     x=8
+tom was planning on building a square fence with a perimeter of 28 units. tom's wife, maria, told him off for making it too big so he had to make each side 1 unit shorter. what was the original perimeter of the fence tom was planning to build?
+
+2x+14=64     x=25
+a mad scientist needed 64 beakers for a project, he only has 14. if he only needs 2 sets, how many beakers are in each set?
+
+8x-16=64     x=10
+a man's bank account is in the negative by 16 dollars, after making 8 payments of the same value his balence is up to 64. what was the value of each payment?
+
+1.075x=29.95     x=27.86046511627907 or 27+(37/43)
+an crypto invester was offered to increase his bitcoin wallet by 1.075 times. his new balence is 29.95 BTC. how many BTC did he start with?
+
+10x+3x-12=144     x=12
+a criminal has 2 bank accounts. the total amount of money is $144 after paying a fee. if he makes 10 deposits in one and 3 deposits into the other and all deposits are of the same amount of money, how much was each deposit?
