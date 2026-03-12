@@ -1,0 +1,41 @@
+body {
+    font-family: Arial;
+}
+
+#container {
+    max-width: 750px;
+    margin: auto;
+    padding: 20px;
+    text-align: center;
+}
+
+#choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+}
+
+button {
+    padding: 10px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+#scoreboard {
+    margin: 20px 0;
+    font-size: 18px;
+}
+
+#modeSelect {
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    padding: 15px;
+}
+
+#instructions {
+    text-align: left;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    padding: 15px;
+}

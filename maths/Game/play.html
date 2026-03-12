@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Solving Systems of Equations Game</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Play a two-player math game where you solve systems of equations using the elimination method. Time-based or point-based modes with score tracking.">
+    <meta name="keywords"
+        content="Math Game, Systems of Equations, Elimination Method, Two Player Game, Educational Game, Learning Math">
+    <link rel="stylesheet" href="game.css">
+</head>
+
+<body>
+    <div id="container">
+        <h1>Solving Systems Using Elimination</h1>
+        <p>
+            <b>Created by:</b> Devan Thiel<br>
+            <b>Math Topic:</b> Solving Systems of Equations Using Elimination
+        </p>
+        <div id="instructions">
+            <h3>How To Play</h3>
+            <p>
+                Players take turns solving systems of equations using the elimination method.
+            </p>
+            <p>
+                All answers are rounded to 2 decimal places.
+            </p>
+            <ul>
+                <li>Player 1 answers first, then Player 2.</li>
+                <li>Correct answers give <b>+1 point</b>.</li>
+                <li>Incorrect answers subtract <b>1 point</b>.</li>
+            </ul>
+            <p><b>Time Mode:</b> When time runs out, the player with the most points wins.</p>
+            <p><b>Point Mode:</b> The first player to reach the point goal wins.</p>
+        </div>
+        <div id="modeSelect">
+            <h3>Game Settings</h3>
+            <label>Player 1 Name</label>
+            <input id="name1" value="Player 1">
+            <br><br>
+            <label>Player 2 Name</label>
+            <input id="name2" value="Player 2">
+            <br><br>
+            <label>Time Limit (seconds)</label>
+            <input id="timeInput" type="number" value="60" min="10">
+            <br><br>
+            <label>Point Goal</label>
+            <input id="pointInput" type="number" value="10" min="1">
+            <br><br>
+            <button onclick="startGame('time')">Start Time Mode</button>
+            <button onclick="startGame('points')">Start Point Mode</button>
+        </div>
+        <div id="scoreboard">
+            <span id="p1name">Player 1</span>: <span id="p1">0</span> |
+            <span id="p2name">Player 2</span>: <span id="p2">0</span>
+            <br>
+            Turn: <span id="turn">Player 1</span>
+            <br>
+            <span id="timer"></span>
+        </div>
+        <div id="question">
+            <p><span id="eq1"></span></p>
+            <p><span id="eq2"></span></p>
+        </div>
+        <div id="choices"></div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
